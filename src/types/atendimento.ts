@@ -43,12 +43,15 @@ export interface AtendimentoStats {
 }
 
 export const getStatusAtendimento = (atendimento: Atendimento): StatusAtendimento => {
-  if (atendimento.atendimentofinalizado) {
+  // Concluídos: AtendimentoFinalizado = true
+  if (atendimento.atendimentofinalizado === true) {
     return 'CONCLUIDO';
   }
-  if (atendimento.user_lastinteraction === null) {
+  // Não Iniciados: bot_lastInteraction OU user_lastInteraction são nulos
+  if (atendimento.bot_lastinteraction === null || atendimento.user_lastinteraction === null) {
     return 'NAO_INICIADO';
   }
+  // Em Andamento: AtendimentoFinalizado = false (e tem interações)
   return 'EM_ANDAMENTO';
 };
 
