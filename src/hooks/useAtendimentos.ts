@@ -1,6 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { Atendimento, AtendimentoStats, getStatusAtendimento } from '@/types/atendimento';
+
+// Cliente dedicado para a tabela externa registra_interacoes_tokai
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 interface Filters {
   startDate: Date | null;
@@ -9,7 +21,16 @@ interface Filters {
   agente: string | null;
 }
 
-export const useAtendimentos = (filters: Filters) => {
+interface UseAtendimentosReturn {
+  atendimentos: Atendimento[];
+  stats: AtendimentoStats;
+  loading: boolean;
+  agentes: string[];
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
+export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [stats, setStats] = useState<AtendimentoStats>({
     total: 0,
@@ -20,6 +41,7 @@ export const useAtendimentos = (filters: Filters) => {
     ativos: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [agentes, setAgentes] = useState<string[]>([]);
 
   const calculateStats = useCallback((data: Atendimento[]): AtendimentoStats => {
@@ -47,9 +69,12 @@ export const useAtendimentos = (filters: Filters) => {
 
   const fetchAtendimentos = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      let query = supabase
-        .from('atendimentos')
+      // Usando a tabela registra_interacoes_tokai
+      let query = supabaseClient
+        .from('registra_interacoes_tokai')
         .select('*')
         .order('timestamp_chamada', { ascending: false });
 
@@ -63,10 +88,36 @@ export const useAtendimentos = (filters: Filters) => {
         query = query.eq('agente_associado', filters.agente);
       }
 
-      const { data, error } = await query;
+      const { data, error: queryError } = await query;
 
-      if (error) {
-        console.error('Error fetching atendimentos:', error);
+      if (queryError) {
+        console.error('Error fetching atendimentos:', queryError);
+        setError('Aguardando dados da Tokai');
+        setAtendimentos([]);
+        setStats({
+          total: 0,
+          naoIniciado: 0,
+          emAndamento: 0,
+          concluido: 0,
+          taxaConclusao: 0,
+          ativos: 0,
+        });
+        return;
+      }
+
+      // Se não houver dados, exibir mensagem amigável
+      if (!data || data.length === 0) {
+        setError('Aguardando dados da Tokai');
+        setAtendimentos([]);
+        setStats({
+          total: 0,
+          naoIniciado: 0,
+          emAndamento: 0,
+          concluido: 0,
+          taxaConclusao: 0,
+          ativos: 0,
+        });
+        setAgentes([]);
         return;
       }
 
@@ -90,8 +141,18 @@ export const useAtendimentos = (filters: Filters) => {
           .filter((a): a is string => a !== null && a !== 'null')
       )];
       setAgentes(uniqueAgentes);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Aguardando dados da Tokai');
+      setAtendimentos([]);
+      setStats({
+        total: 0,
+        naoIniciado: 0,
+        emAndamento: 0,
+        concluido: 0,
+        taxaConclusao: 0,
+        ativos: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -101,16 +162,16 @@ export const useAtendimentos = (filters: Filters) => {
     fetchAtendimentos();
   }, [fetchAtendimentos]);
 
-  // Real-time subscription
+  // Real-time subscription para registra_interacoes_tokai
   useEffect(() => {
-    const channel = supabase
-      .channel('atendimentos-changes')
+    const channel = supabaseClient
+      .channel('registra-interacoes-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'atendimentos',
+          table: 'registra_interacoes_tokai',
         },
         () => {
           fetchAtendimentos();
@@ -119,9 +180,60 @@ export const useAtendimentos = (filters: Filters) => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabaseClient.removeChannel(channel);
     };
   }, [fetchAtendimentos]);
 
-  return { atendimentos, stats, loading, agentes, refetch: fetchAtendimentos };
+  return { atendimentos, stats, loading, agentes, error, refetch: fetchAtendimentos };
+};
+
+// Interface para mensagens relacionadas (preparação para segunda tabela)
+export interface Mensagem {
+  id: string;
+  remotejid: string;
+  session_id?: string;
+  content: string;
+  timestamp: string;
+  sender: 'bot' | 'user';
+}
+
+// Hook preparado para buscar mensagens relacionadas
+export const useMensagens = (remotejid: string | null) => {
+  const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchMensagens = useCallback(async () => {
+    if (!remotejid) {
+      setMensagens([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Estrutura preparada para tabela de mensagens
+      // Descomente e ajuste quando a tabela estiver disponível:
+      // const { data, error: queryError } = await supabase
+      //   .from('mensagens_tokai')
+      //   .select('*')
+      //   .eq('remotejid', remotejid)
+      //   .order('timestamp', { ascending: true });
+      
+      // Por enquanto, retorna array vazio
+      setMensagens([]);
+    } catch (err) {
+      console.error('Error fetching mensagens:', err);
+      setError('Erro ao carregar mensagens');
+    } finally {
+      setLoading(false);
+    }
+  }, [remotejid]);
+
+  useEffect(() => {
+    fetchMensagens();
+  }, [fetchMensagens]);
+
+  return { mensagens, loading, error, refetch: fetchMensagens };
 };

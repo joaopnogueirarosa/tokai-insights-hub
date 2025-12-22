@@ -21,7 +21,7 @@ const Index = () => {
   const [status, setStatus] = useState<string | null>(null);
   const [agente, setAgente] = useState<string | null>(null);
 
-  const { atendimentos, stats, loading, agentes, refetch } = useAtendimentos({
+  const { atendimentos, stats, loading, agentes, error, refetch } = useAtendimentos({
     startDate,
     endDate,
     status,
@@ -106,14 +106,31 @@ const Index = () => {
           />
         </div>
 
-        {/* Charts */}
-        <div className="mb-6 grid gap-6 lg:grid-cols-2">
-          <StatusChart stats={stats} />
-          <StatusBarChart stats={stats} />
-        </div>
+        {/* Status Message or Charts */}
+        {error && !loading ? (
+          <div className="mb-6 rounded-lg border border-border bg-card p-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <MessageSquare className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">
+              {error}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Os dados serão exibidos automaticamente quando disponíveis.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Charts */}
+            <div className="mb-6 grid gap-6 lg:grid-cols-2">
+              <StatusChart stats={stats} />
+              <StatusBarChart stats={stats} />
+            </div>
 
-        {/* Table */}
-        <AtendimentosTable atendimentos={atendimentos} loading={loading} />
+            {/* Table */}
+            <AtendimentosTable atendimentos={atendimentos} loading={loading} />
+          </>
+        )}
       </div>
     </div>
   );
