@@ -43,14 +43,24 @@ export interface AtendimentoStats {
 }
 
 export const getStatusAtendimento = (atendimento: Atendimento): StatusAtendimento => {
+  const a: any = atendimento;
+
+  // Compatibilidade: tabela "atendimentos" (snake_case) vs tabela Tokai (camelCase/PascalCase)
+  const finalizado: boolean | null | undefined =
+    a.AtendimentoFinalizado ?? a.atendimentofinalizado;
+
+  const botLast: string | null | undefined =
+    a.bot_lastInteraction ?? a.bot_lastinteraction;
+
+  const userLast: string | null | undefined =
+    a.user_lastInteraction ?? a.user_lastinteraction;
+
   // Concluídos: AtendimentoFinalizado = true
-  if (atendimento.atendimentofinalizado === true) {
-    return 'CONCLUIDO';
-  }
+  if (finalizado === true) return 'CONCLUIDO';
+
   // Não Iniciados: bot_lastInteraction OU user_lastInteraction são nulos
-  if (atendimento.bot_lastinteraction === null || atendimento.user_lastinteraction === null) {
-    return 'NAO_INICIADO';
-  }
+  if (botLast == null || userLast == null) return 'NAO_INICIADO';
+
   // Em Andamento: AtendimentoFinalizado = false (e tem interações)
   return 'EM_ANDAMENTO';
 };

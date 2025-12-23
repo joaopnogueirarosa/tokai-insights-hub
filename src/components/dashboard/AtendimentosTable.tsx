@@ -19,7 +19,8 @@ const statusVariants: Record<StatusAtendimento, string> = {
   CONCLUIDO: 'bg-status-completed-bg text-status-completed border-status-completed/30',
 };
 
-const formatPhoneNumber = (remoteJid: string): string => {
+const formatPhoneNumber = (remoteJid: string | null | undefined): string => {
+  if (!remoteJid) return '—';
   const cleaned = remoteJid.replace('@s.whatsapp.net', '');
   if (cleaned.length === 13 && cleaned.startsWith('55')) {
     const ddd = cleaned.slice(2, 4);
@@ -83,17 +84,38 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                 </TableRow>
               ) : (
                 atendimentos.map((atendimento, index) => {
+                  const a: any = atendimento;
+
+                  const remoteJid: string | null | undefined = a.remotejid ?? a.remoteJid;
+                  const nomeCliente: string | null | undefined = a.nome_cliente ?? a.nomeCliente;
+                  const timestampChamada: string | null | undefined =
+                    a.timestamp_chamada ?? a.timestampChamada;
+                  const userLast: string | null | undefined =
+                    a.user_lastinteraction ?? a.user_lastInteraction;
+                  const agenteAssociado: string | null | undefined =
+                    a.agente_associado ?? a.agenteAssociado;
+                  const iaLigada: boolean | null | undefined = a.ia_ligada ?? a.iaLigada;
+
                   const status = getStatusAtendimento(atendimento);
+
+                  const tsDate = timestampChamada ? new Date(timestampChamada) : null;
+                  const tsValid = !!tsDate && !Number.isNaN(tsDate.getTime());
+
+                  const lastDate = userLast ? new Date(userLast) : null;
+                  const lastValid = !!lastDate && !Number.isNaN(lastDate.getTime());
+
+                  const rowKey = a.id ?? `${remoteJid ?? 'row'}-${index}`;
+
                   return (
                     <TableRow 
-                      key={atendimento.id} 
+                      key={rowKey} 
                       className="border-border hover:bg-muted/50 transition-colors"
                       style={{ animationDelay: `${index * 20}ms` }}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                            {atendimento.nome_cliente ? (
+                            {nomeCliente ? (
                               <User className="h-4 w-4 text-primary" />
                             ) : (
                               <Phone className="h-4 w-4 text-primary" />
@@ -101,11 +123,11 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                           </div>
                           <div>
                             <p className="font-medium text-foreground">
-                              {atendimento.nome_cliente || formatPhoneNumber(atendimento.remotejid)}
+                              {nomeCliente || formatPhoneNumber(remoteJid)}
                             </p>
-                            {atendimento.nome_cliente && (
+                            {nomeCliente && (
                               <p className="text-xs text-muted-foreground">
-                                {formatPhoneNumber(atendimento.remotejid)}
+                                {formatPhoneNumber(remoteJid)}
                               </p>
                             )}
                           </div>
@@ -120,16 +142,16 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                         <div className="flex items-center gap-2 text-sm">
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="text-foreground">
-                            {format(new Date(atendimento.timestamp_chamada), "dd/MM/yyyy 'às' HH:mm", {
-                              locale: ptBR,
-                            })}
+                            {tsValid
+                              ? format(tsDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                              : '—'}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {atendimento.user_lastinteraction ? (
+                        {lastValid ? (
                           <span className="text-sm text-muted-foreground">
-                            {formatDistanceToNow(new Date(atendimento.user_lastinteraction), {
+                            {formatDistanceToNow(lastDate, {
                               addSuffix: true,
                               locale: ptBR,
                             })}
@@ -140,9 +162,7 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-foreground">
-                          {atendimento.agente_associado && atendimento.agente_associado !== 'null'
-                            ? atendimento.agente_associado
-                            : '—'}
+                          {agenteAssociado && agenteAssociado !== 'null' ? agenteAssociado : '—'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -150,11 +170,11 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                           <MessageSquare
                             className={cn(
                               'h-4 w-4',
-                              atendimento.ia_ligada ? 'text-status-completed' : 'text-muted-foreground'
+                              iaLigada ? 'text-status-completed' : 'text-muted-foreground'
                             )}
                           />
                           <span className="text-sm text-muted-foreground">
-                            {atendimento.ia_ligada ? 'Ativa' : 'Inativa'}
+                            {iaLigada ? 'Ativa' : 'Inativa'}
                           </span>
                         </div>
                       </TableCell>

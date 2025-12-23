@@ -19,6 +19,8 @@ interface UseAtendimentosReturn {
 }
 
 export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
+  const { startDate, endDate, status, agente } = filters;
+
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [stats, setStats] = useState<AtendimentoStats>({
     total: 0,
@@ -58,7 +60,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const fetchAtendimentos = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Usando a tabela registra_interacoes_tokai (tabela externa, não tipada localmente)
       let query = (supabase as any)
@@ -66,14 +68,14 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         .select('*')
         .order('timestamp_chamada', { ascending: false });
 
-      if (filters.startDate) {
-        query = query.gte('timestamp_chamada', filters.startDate.toISOString());
+      if (startDate) {
+        query = query.gte('timestamp_chamada', startDate.toISOString());
       }
-      if (filters.endDate) {
-        query = query.lte('timestamp_chamada', filters.endDate.toISOString());
+      if (endDate) {
+        query = query.lte('timestamp_chamada', endDate.toISOString());
       }
-      if (filters.agente) {
-        query = query.eq('agente_associado', filters.agente);
+      if (agente) {
+        query = query.eq('agente_associado', agente);
       }
 
       const { data, error: queryError } = await query;
@@ -90,6 +92,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
           taxaConclusao: 0,
           ativos: 0,
         });
+        setAgentes([]);
         return;
       }
 
@@ -112,22 +115,24 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       let filteredData = (data as Atendimento[]) || [];
 
       // Filter by status if specified
-      if (filters.status) {
+      if (status) {
         filteredData = filteredData.filter((atendimento) => {
-          const status = getStatusAtendimento(atendimento);
-          return status === filters.status;
+          const st = getStatusAtendimento(atendimento);
+          return st === status;
         });
       }
 
       setAtendimentos(filteredData);
-      setStats(calculateStats(data as Atendimento[] || []));
+      setStats(calculateStats((data as Atendimento[]) || []));
 
       // Extract unique agents
-      const uniqueAgentes = [...new Set(
-        (data as Atendimento[])
-          ?.map((a) => a.agente_associado)
-          .filter((a): a is string => a !== null && a !== 'null')
-      )];
+      const uniqueAgentes = [
+        ...new Set(
+          (data as Atendimento[])
+            ?.map((a) => a.agente_associado)
+            .filter((a): a is string => a !== null && a !== 'null')
+        ),
+      ];
       setAgentes(uniqueAgentes);
     } catch (err) {
       console.error('Error:', err);
@@ -141,10 +146,11 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         taxaConclusao: 0,
         ativos: 0,
       });
+      setAgentes([]);
     } finally {
       setLoading(false);
     }
-  }, [filters, calculateStats]);
+  }, [startDate, endDate, status, agente, calculateStats]);
 
   useEffect(() => {
     fetchAtendimentos();
