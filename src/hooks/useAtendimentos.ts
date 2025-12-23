@@ -1,18 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { Atendimento, AtendimentoStats, getStatusAtendimento } from '@/types/atendimento';
-
-// Cliente dedicado para a tabela externa registra_interacoes_tokai
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
 
 interface Filters {
   startDate: Date | null;
@@ -72,8 +60,8 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     setError(null);
     
     try {
-      // Usando a tabela registra_interacoes_tokai
-      let query = supabaseClient
+      // Usando a tabela registra_interacoes_tokai (tabela externa, não tipada localmente)
+      let query = (supabase as any)
         .from('registra_interacoes_tokai')
         .select('*')
         .order('timestamp_chamada', { ascending: false });
@@ -164,7 +152,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
 
   // Real-time subscription para registra_interacoes_tokai
   useEffect(() => {
-    const channel = supabaseClient
+    const channel = supabase
       .channel('registra-interacoes-changes')
       .on(
         'postgres_changes',
@@ -180,7 +168,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       .subscribe();
 
     return () => {
-      supabaseClient.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [fetchAtendimentos]);
 
