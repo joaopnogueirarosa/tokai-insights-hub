@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Atendimento, AtendimentoStats, getStatusAtendimento } from '@/types/atendimento';
 
@@ -20,7 +20,6 @@ interface UseAtendimentosReturn {
 
 export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const { startDate, endDate, status, agente } = filters;
-  const hasFetched = useRef(false);
 
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [stats, setStats] = useState<AtendimentoStats>({
