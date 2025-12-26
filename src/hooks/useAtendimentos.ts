@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Atendimento, AtendimentoStats, getStatusAtendimento } from '@/types/atendimento';
 
@@ -20,6 +20,7 @@ interface UseAtendimentosReturn {
 
 export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const { startDate, endDate, status, agente } = filters;
+  const hasFetched = useRef(false);
 
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [stats, setStats] = useState<AtendimentoStats>({
@@ -62,26 +63,19 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     setError(null);
 
     try {
-      // Usando a tabela registra_interacoes_tokai (tabela externa, não tipada localmente)
-      let query = (supabase as any)
-        .from('registra_interacoes_tokai')
-        .select('*')
-        .order('timestamp_chamada', { ascending: false });
+      const { data: result, error: invokeError } = await supabase.functions.invoke(
+        "fetch-atendimentos",
+        {
+          body: { 
+            startDate: startDate?.toISOString(), 
+            endDate: endDate?.toISOString(), 
+            agente 
+          },
+        }
+      );
 
-      if (startDate) {
-        query = query.gte('timestamp_chamada', startDate.toISOString());
-      }
-      if (endDate) {
-        query = query.lte('timestamp_chamada', endDate.toISOString());
-      }
-      if (agente) {
-        query = query.eq('agente_associado', agente);
-      }
-
-      const { data, error: queryError } = await query;
-
-      if (queryError) {
-        console.error('Error fetching atendimentos:', queryError);
+      if (invokeError) {
+        console.error('Error fetching atendimentos:', invokeError);
         setError('Aguardando dados da Tokai');
         setAtendimentos([]);
         setStats({
@@ -95,6 +89,8 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         setAgentes([]);
         return;
       }
+
+      const data = result?.data || [];
 
       // Se não houver dados, exibir mensagem amigável
       if (!data || data.length === 0) {
@@ -156,27 +152,8 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     fetchAtendimentos();
   }, [fetchAtendimentos]);
 
-  // Real-time subscription para registra_interacoes_tokai
-  useEffect(() => {
-    const channel = supabase
-      .channel('registra-interacoes-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'registra_interacoes_tokai',
-        },
-        () => {
-          fetchAtendimentos();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchAtendimentos]);
+  // Note: Real-time subscription não funciona com banco externo
+  // Dados são atualizados manualmente via refetch
 
   return { atendimentos, stats, loading, agentes, error, refetch: fetchAtendimentos };
 };
