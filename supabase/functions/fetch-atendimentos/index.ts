@@ -12,6 +12,37 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication check - verify JWT token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", data: [] }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify the user's JWT token using the local Supabase instance
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message || "No user found");
+      return new Response(
+        JSON.stringify({ error: "Invalid token", data: [] }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
+    // External Supabase credentials for data fetching
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL");
     const externalKey = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
 
@@ -36,6 +67,20 @@ serve(async (req) => {
         startDate = body.startDate || null;
         endDate = body.endDate || null;
         agente = body.agente || null;
+
+        // Validate date range to prevent abuse (max 90 days)
+        if (startDate && endDate) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          const daysDiff = Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysDiff > 90) {
+            console.warn("Date range too large:", daysDiff, "days");
+            return new Response(
+              JSON.stringify({ error: "Date range too large (max 90 days)", data: [] }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
       } catch {
         // No body or invalid JSON, continue without filters
       }

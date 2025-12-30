@@ -84,6 +84,18 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     setError(null);
 
     try {
+      // Get current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setError('Usuário não autenticado');
+        setAtendimentos([]);
+        setStats(emptyStats);
+        setAgentes([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: result, error: invokeError } = await supabase.functions.invoke(
         "fetch-atendimentos",
         {
