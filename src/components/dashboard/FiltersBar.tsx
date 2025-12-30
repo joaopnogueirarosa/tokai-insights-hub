@@ -102,13 +102,16 @@ export const FiltersBar = ({
 
       {/* Status Filter */}
       <Select value={status || 'all'} onValueChange={(value) => onStatusChange(value === 'all' ? null : value)}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[200px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos os Status</SelectItem>
           <SelectItem value="NAO_INICIADO">Não Iniciado</SelectItem>
-          <SelectItem value="EM_ANDAMENTO">Em Andamento</SelectItem>
+          <SelectItem value="EM_ANDAMENTO_IA">Em Andamento (IA)</SelectItem>
+          <SelectItem value="EM_ANDAMENTO_HUMANO">Em Andamento (Humano)</SelectItem>
+          <SelectItem value="AGUARDANDO_CLIENTE">Aguardando Cliente</SelectItem>
+          <SelectItem value="EM_ANDAMENTO">Todos Em Andamento</SelectItem>
           <SelectItem value="CONCLUIDO">Concluído</SelectItem>
         </SelectContent>
       </Select>

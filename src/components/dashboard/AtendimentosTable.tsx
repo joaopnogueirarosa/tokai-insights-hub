@@ -15,7 +15,9 @@ interface AtendimentosTableProps {
 
 const statusVariants: Record<StatusAtendimento, string> = {
   NAO_INICIADO: 'bg-status-pending-bg text-status-pending border-status-pending/30',
-  EM_ANDAMENTO: 'bg-status-progress-bg text-status-progress border-status-progress/30',
+  EM_ANDAMENTO_IA: 'bg-status-progress-bg text-status-progress border-status-progress/30',
+  EM_ANDAMENTO_HUMANO: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
+  AGUARDANDO_CLIENTE: 'bg-orange-500/10 text-orange-500 border-orange-500/30',
   CONCLUIDO: 'bg-status-completed-bg text-status-completed border-status-completed/30',
 };
 
@@ -94,7 +96,7 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                     a.user_lastinteraction ?? a.user_lastInteraction;
                   const agenteAssociado: string | null | undefined =
                     a.agente_associado ?? a.agenteAssociado;
-                  const iaLigada: boolean | null | undefined = a.ia_ligada ?? a.iaLigada;
+                  const iaLigada: boolean | null | undefined = a.ia_ligada ?? a.iaLigada ?? a.IA_ligada;
 
                   const status = getStatusAtendimento(atendimento);
 

@@ -9,7 +9,9 @@ interface StatusBarChartProps {
 export const StatusBarChart = ({ stats }: StatusBarChartProps) => {
   const data = [
     { name: 'Não Iniciado', value: stats.naoIniciado, fill: 'hsl(38 92% 50%)' },
-    { name: 'Em Andamento', value: stats.emAndamento, fill: 'hsl(217 91% 50%)' },
+    { name: 'IA', value: stats.emAndamentoIA, fill: 'hsl(217 91% 50%)' },
+    { name: 'Humano', value: stats.emAndamentoHumano, fill: 'hsl(280 80% 55%)' },
+    { name: 'Aguardando', value: stats.aguardandoCliente, fill: 'hsl(25 95% 53%)' },
     { name: 'Concluído', value: stats.concluido, fill: 'hsl(152 69% 40%)' },
   ];
 
@@ -29,7 +31,7 @@ export const StatusBarChart = ({ stats }: StatusBarChartProps) => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="name" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
               />
               <YAxis 
