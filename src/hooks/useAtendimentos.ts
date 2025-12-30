@@ -18,18 +18,22 @@ interface UseAtendimentosReturn {
   refetch: () => Promise<void>;
 }
 
+const emptyStats: AtendimentoStats = {
+  total: 0,
+  naoIniciado: 0,
+  emAndamentoIA: 0,
+  emAndamentoHumano: 0,
+  aguardandoCliente: 0,
+  concluido: 0,
+  taxaConclusao: 0,
+  ativos: 0,
+};
+
 export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const { startDate, endDate, status, agente } = filters;
 
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
-  const [stats, setStats] = useState<AtendimentoStats>({
-    total: 0,
-    naoIniciado: 0,
-    emAndamento: 0,
-    concluido: 0,
-    taxaConclusao: 0,
-    ativos: 0,
-  });
+  const [stats, setStats] = useState<AtendimentoStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [agentes, setAgentes] = useState<string[]>([]);
@@ -37,23 +41,41 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   const calculateStats = useCallback((data: Atendimento[]): AtendimentoStats => {
     const total = data.length;
     let naoIniciado = 0;
-    let emAndamento = 0;
+    let emAndamentoIA = 0;
+    let emAndamentoHumano = 0;
+    let aguardandoCliente = 0;
     let concluido = 0;
 
     data.forEach((atendimento) => {
-      const status = getStatusAtendimento(atendimento);
-      if (status === 'NAO_INICIADO') naoIniciado++;
-      else if (status === 'EM_ANDAMENTO') emAndamento++;
-      else if (status === 'CONCLUIDO') concluido++;
+      const st = getStatusAtendimento(atendimento);
+      switch (st) {
+        case 'NAO_INICIADO':
+          naoIniciado++;
+          break;
+        case 'EM_ANDAMENTO_IA':
+          emAndamentoIA++;
+          break;
+        case 'EM_ANDAMENTO_HUMANO':
+          emAndamentoHumano++;
+          break;
+        case 'AGUARDANDO_CLIENTE':
+          aguardandoCliente++;
+          break;
+        case 'CONCLUIDO':
+          concluido++;
+          break;
+      }
     });
 
     return {
       total,
       naoIniciado,
-      emAndamento,
+      emAndamentoIA,
+      emAndamentoHumano,
+      aguardandoCliente,
       concluido,
       taxaConclusao: total > 0 ? Math.round((concluido / total) * 100) : 0,
-      ativos: naoIniciado + emAndamento,
+      ativos: naoIniciado + emAndamentoIA + emAndamentoHumano + aguardandoCliente,
     };
   }, []);
 
@@ -77,14 +99,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         console.error('Error fetching atendimentos:', invokeError);
         setError('Aguardando dados da Tokai');
         setAtendimentos([]);
-        setStats({
-          total: 0,
-          naoIniciado: 0,
-          emAndamento: 0,
-          concluido: 0,
-          taxaConclusao: 0,
-          ativos: 0,
-        });
+        setStats(emptyStats);
         setAgentes([]);
         return;
       }
@@ -95,24 +110,21 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       if (!data || data.length === 0) {
         setError('Aguardando dados da Tokai');
         setAtendimentos([]);
-        setStats({
-          total: 0,
-          naoIniciado: 0,
-          emAndamento: 0,
-          concluido: 0,
-          taxaConclusao: 0,
-          ativos: 0,
-        });
+        setStats(emptyStats);
         setAgentes([]);
         return;
       }
 
       let filteredData = (data as Atendimento[]) || [];
 
-      // Filter by status if specified
+      // Filter by status if specified (suporta status antigos e novos)
       if (status) {
         filteredData = filteredData.filter((atendimento) => {
           const st = getStatusAtendimento(atendimento);
+          // Compatibilidade: aceita filtros antigos (EM_ANDAMENTO) e novos
+          if (status === 'EM_ANDAMENTO') {
+            return st === 'EM_ANDAMENTO_IA' || st === 'EM_ANDAMENTO_HUMANO' || st === 'AGUARDANDO_CLIENTE';
+          }
           return st === status;
         });
       }
@@ -133,14 +145,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       console.error('Error:', err);
       setError('Aguardando dados da Tokai');
       setAtendimentos([]);
-      setStats({
-        total: 0,
-        naoIniciado: 0,
-        emAndamento: 0,
-        concluido: 0,
-        taxaConclusao: 0,
-        ativos: 0,
-      });
+      setStats(emptyStats);
       setAgentes([]);
     } finally {
       setLoading(false);

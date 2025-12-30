@@ -8,16 +8,20 @@ interface StatusChartProps {
 
 const COLORS = {
   naoIniciado: 'hsl(38 92% 50%)',
-  emAndamento: 'hsl(217 91% 50%)',
+  emAndamentoIA: 'hsl(217 91% 50%)',
+  emAndamentoHumano: 'hsl(280 80% 55%)',
+  aguardandoCliente: 'hsl(25 95% 53%)',
   concluido: 'hsl(152 69% 40%)',
 };
 
 export const StatusChart = ({ stats }: StatusChartProps) => {
   const data = [
     { name: 'Não Iniciado', value: stats.naoIniciado, color: COLORS.naoIniciado },
-    { name: 'Em Andamento', value: stats.emAndamento, color: COLORS.emAndamento },
+    { name: 'Em Andamento (IA)', value: stats.emAndamentoIA, color: COLORS.emAndamentoIA },
+    { name: 'Em Andamento (Humano)', value: stats.emAndamentoHumano, color: COLORS.emAndamentoHumano },
+    { name: 'Aguardando Cliente', value: stats.aguardandoCliente, color: COLORS.aguardandoCliente },
     { name: 'Concluído', value: stats.concluido, color: COLORS.concluido },
-  ];
+  ].filter(item => item.value > 0); // Remove itens zerados do gráfico
 
   const hasData = stats.total > 0;
 
