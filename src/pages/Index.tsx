@@ -12,9 +12,7 @@ import {
   Bot,
   UserCircle,
   Hourglass,
-  CheckCircle2,
-  TrendingUp,
-  Zap
+  CheckCircle2
 } from 'lucide-react';
 
 const Index = () => {
@@ -37,16 +35,13 @@ const Index = () => {
     setAgente(null);
   };
 
-  // Total em andamento = IA + Humano
-  const totalEmAndamento = stats.emAndamentoIA + stats.emAndamentoHumano;
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <Header />
 
-        {/* KPI Cards - 2 linhas */}
-        <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* KPI Cards */}
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KPICard
             title="Total de Atendimentos"
             value={stats.total}
@@ -75,9 +70,6 @@ const Index = () => {
             variant="default"
             delay={150}
           />
-        </div>
-        
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KPICard
             title="Aguardando Cliente"
             value={stats.aguardandoCliente}
@@ -91,22 +83,6 @@ const Index = () => {
             icon={CheckCircle2}
             variant="success"
             delay={250}
-          />
-          <KPICard
-            title="Taxa de Conclusão"
-            value={`${stats.taxaConclusao}%`}
-            icon={TrendingUp}
-            variant="default"
-            subtitle="do total de atendimentos"
-            delay={300}
-          />
-          <KPICard
-            title="Atendimentos Ativos"
-            value={stats.ativos}
-            icon={Zap}
-            variant="info"
-            subtitle="não finalizados"
-            delay={350}
           />
         </div>
 
