@@ -29,19 +29,17 @@ export interface Atendimento {
   agente_associado: string | null;
   nome_empreendimento: string | null;
   created_at: string;
-  // Novos campos para lógica baseada em mensagens
-  last_actor: 'cliente' | 'ia' | 'humano' | null;
-  closed_at: string | null;
-  client_last_interaction: string | null;
+  // Nova coluna de status em tempo real
+  status: 'concluido' | 'em_andamento' | 'nao_iniciado' | 'aguardando_cliente' | null;
 }
 
-// Status mais granulares baseados na nova regra de negócio
+// Status granulares para exibição no dashboard
 export type StatusAtendimento = 
-  | 'NAO_INICIADO'           // Cliente enviou, sem resposta
-  | 'EM_ANDAMENTO_IA'        // IA respondeu, não encerrado
-  | 'EM_ANDAMENTO_HUMANO'    // Humano respondeu, não encerrado
-  | 'AGUARDANDO_CLIENTE'     // IA/Humano enviou, aguarda cliente
-  | 'CONCLUIDO';             // Encerrado (closed_at ou 24h sem resposta)
+  | 'NAO_INICIADO'           // status = 'nao_iniciado'
+  | 'EM_ANDAMENTO_IA'        // status = 'em_andamento' + última msg foi IA
+  | 'EM_ANDAMENTO_HUMANO'    // status = 'em_andamento' + última msg foi Humano
+  | 'AGUARDANDO_CLIENTE'     // status = 'aguardando_cliente'
+  | 'CONCLUIDO';             // status = 'concluido'
 
 export interface AtendimentoStats {
   total: number;
@@ -50,72 +48,57 @@ export interface AtendimentoStats {
   emAndamentoHumano: number;
   aguardandoCliente: number;
   concluido: number;
-  taxaConclusao: number;
-  ativos: number;
 }
 
-// Verifica se passou mais de 24h sem resposta do cliente
-const isInactiveFor24Hours = (clientLastInteraction: string | null): boolean => {
-  if (!clientLastInteraction) return false;
-  const lastInteraction = new Date(clientLastInteraction);
-  const now = new Date();
-  const diffHours = (now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60);
-  return diffHours >= 24;
-};
-
+// Determina o status granular baseado na nova coluna 'status' e timestamps
 export const getStatusAtendimento = (atendimento: Atendimento): StatusAtendimento => {
   const a: any = atendimento;
-
-  // Compatibilidade: tabela externa usa camelCase, nossa interface usa snake_case
-  const closedAt: string | null | undefined = a.closed_at ?? a.closedAt;
-  const lastActor: string | null | undefined = a.last_actor ?? a.lastActor;
+  
+  // Lê a nova coluna status (pode vir como camelCase ou snake_case)
+  const statusCol: string | null = a.status;
+  
+  // Timestamps para determinar IA vs Humano em "em_andamento"
   const botLast: string | null | undefined = a.bot_lastInteraction ?? a.bot_lastinteraction;
   const userLast: string | null | undefined = a.user_lastInteraction ?? a.user_lastinteraction;
-  const clientLast: string | null | undefined = a.client_last_interaction ?? a.clientLastInteraction ?? userLast;
-  const finalizado: boolean | null | undefined = a.AtendimentoFinalizado ?? a.atendimentofinalizado;
 
-  // 1. CONCLUÍDO: closed_at preenchido OU AtendimentoFinalizado = true OU 24h sem resposta
-  if (closedAt != null || finalizado === true) {
-    return 'CONCLUIDO';
-  }
-
-  // Verifica inatividade de 24h
-  if (clientLast && isInactiveFor24Hours(clientLast) && (botLast || userLast)) {
-    return 'CONCLUIDO';
-  }
-
-  // 2. NÃO INICIADO: Existe mensagem do cliente E NÃO existe resposta (IA ou humano)
-  // Se não tem bot_lastInteraction significa que a IA nunca respondeu
-  if (botLast == null && (!lastActor || lastActor === 'cliente')) {
-    return 'NAO_INICIADO';
-  }
-
-  // 3. Determina status baseado no last_actor
-  if (lastActor === 'ia') {
-    return 'EM_ANDAMENTO_IA';
-  }
-
-  if (lastActor === 'humano') {
-    return 'EM_ANDAMENTO_HUMANO';
-  }
-
-  // 4. AGUARDANDO CLIENTE: Última msg foi de IA/humano e cliente não respondeu
-  // Isso acontece quando bot_lastInteraction é mais recente que client_last_interaction
-  if (botLast && clientLast) {
-    const botDate = new Date(botLast);
-    const clientDate = new Date(clientLast);
-    if (botDate > clientDate) {
+  // Mapeia o valor da coluna status para o StatusAtendimento granular
+  switch (statusCol) {
+    case 'concluido':
+      return 'CONCLUIDO';
+    
+    case 'nao_iniciado':
+      return 'NAO_INICIADO';
+    
+    case 'aguardando_cliente':
       return 'AGUARDANDO_CLIENTE';
-    }
+    
+    case 'em_andamento':
+      // Determina se é IA ou Humano baseado nos timestamps
+      // Se user_lastinteraction é mais recente que bot_lastinteraction = Humano
+      // Caso contrário = IA
+      if (botLast && userLast) {
+        const botDate = new Date(botLast);
+        const userDate = new Date(userLast);
+        if (userDate > botDate) {
+          return 'EM_ANDAMENTO_HUMANO';
+        }
+        return 'EM_ANDAMENTO_IA';
+      }
+      // Se só tem interação do humano
+      if (userLast && !botLast) {
+        return 'EM_ANDAMENTO_HUMANO';
+      }
+      // Default para IA
+      return 'EM_ANDAMENTO_IA';
+    
+    default:
+      // Fallback: se status é null ou inválido, tenta inferir
+      if (!statusCol) {
+        // Se não tem status definido, considera não iniciado
+        return 'NAO_INICIADO';
+      }
+      return 'NAO_INICIADO';
   }
-
-  // Fallback: Se tem interação do bot, está em andamento pela IA
-  if (botLast != null) {
-    return 'EM_ANDAMENTO_IA';
-  }
-
-  // Fallback final
-  return 'NAO_INICIADO';
 };
 
 export const getStatusLabel = (status: StatusAtendimento): string => {

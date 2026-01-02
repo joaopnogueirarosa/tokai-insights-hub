@@ -25,8 +25,6 @@ const emptyStats: AtendimentoStats = {
   emAndamentoHumano: 0,
   aguardandoCliente: 0,
   concluido: 0,
-  taxaConclusao: 0,
-  ativos: 0,
 };
 
 export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
@@ -74,8 +72,6 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       emAndamentoHumano,
       aguardandoCliente,
       concluido,
-      taxaConclusao: total > 0 ? Math.round((concluido / total) * 100) : 0,
-      ativos: naoIniciado + emAndamentoIA + emAndamentoHumano + aguardandoCliente,
     };
   }, []);
 
