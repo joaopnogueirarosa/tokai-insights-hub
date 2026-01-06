@@ -29,15 +29,17 @@ export interface Atendimento {
   agente_associado: string | null;
   nome_empreendimento: string | null;
   created_at: string;
-  // Nova coluna de status em tempo real
+  // Coluna de status em tempo real
   status: 'concluido' | 'em_andamento' | 'nao_iniciado' | 'aguardando_cliente' | null;
+  // Tipo de atendimento para em_andamento (ia ou humano)
+  tipo_atendimento: 'ia' | 'humano' | null;
 }
 
 // Status granulares para exibição no dashboard
 export type StatusAtendimento = 
   | 'NAO_INICIADO'           // status = 'nao_iniciado'
-  | 'EM_ANDAMENTO_IA'        // status = 'em_andamento' + última msg foi IA
-  | 'EM_ANDAMENTO_HUMANO'    // status = 'em_andamento' + última msg foi Humano
+  | 'EM_ANDAMENTO_IA'        // status = 'em_andamento' + tipo_atendimento = 'ia'
+  | 'EM_ANDAMENTO_HUMANO'    // status = 'em_andamento' + tipo_atendimento = 'humano'
   | 'AGUARDANDO_CLIENTE'     // status = 'aguardando_cliente'
   | 'CONCLUIDO';             // status = 'concluido'
 
@@ -50,18 +52,11 @@ export interface AtendimentoStats {
   concluido: number;
 }
 
-// Determina o status granular baseado na nova coluna 'status' e timestamps
+// Determina o status granular baseado na coluna 'status' e 'tipo_atendimento'
 export const getStatusAtendimento = (atendimento: Atendimento): StatusAtendimento => {
-  const a: any = atendimento;
-  
-  // Lê a nova coluna status (pode vir como camelCase ou snake_case)
-  const statusCol: string | null = a.status;
-  
-  // Timestamps para determinar IA vs Humano em "em_andamento"
-  const botLast: string | null | undefined = a.bot_lastInteraction ?? a.bot_lastinteraction;
-  const userLast: string | null | undefined = a.user_lastInteraction ?? a.user_lastinteraction;
+  const statusCol = atendimento.status;
+  const tipoAtendimento = atendimento.tipo_atendimento;
 
-  // Mapeia o valor da coluna status para o StatusAtendimento granular
   switch (statusCol) {
     case 'concluido':
       return 'CONCLUIDO';
@@ -73,30 +68,15 @@ export const getStatusAtendimento = (atendimento: Atendimento): StatusAtendiment
       return 'AGUARDANDO_CLIENTE';
     
     case 'em_andamento':
-      // Determina se é IA ou Humano baseado nos timestamps
-      // Se user_lastinteraction é mais recente que bot_lastinteraction = Humano
-      // Caso contrário = IA
-      if (botLast && userLast) {
-        const botDate = new Date(botLast);
-        const userDate = new Date(userLast);
-        if (userDate > botDate) {
-          return 'EM_ANDAMENTO_HUMANO';
-        }
-        return 'EM_ANDAMENTO_IA';
-      }
-      // Se só tem interação do humano
-      if (userLast && !botLast) {
+      // Usa a coluna tipo_atendimento para determinar IA ou Humano
+      if (tipoAtendimento === 'humano') {
         return 'EM_ANDAMENTO_HUMANO';
       }
-      // Default para IA
+      // Default para IA (se tipo_atendimento = 'ia' ou null)
       return 'EM_ANDAMENTO_IA';
     
     default:
-      // Fallback: se status é null ou inválido, tenta inferir
-      if (!statusCol) {
-        // Se não tem status definido, considera não iniciado
-        return 'NAO_INICIADO';
-      }
+      // Fallback: se status é null, considera não iniciado
       return 'NAO_INICIADO';
   }
 };
