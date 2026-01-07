@@ -1,7 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
-// Allowed origins for CORS - restrict to known domains
 const ALLOWED_ORIGINS = [
   'https://ildaiqtamtawjuoveuuq.lovable.app',
   'https://ildaiqtamtawjuoveuuq.supabase.co',
@@ -11,11 +10,11 @@ const ALLOWED_ORIGINS = [
 ];
 
 const getCorsHeaders = (origin: string | null) => {
-  // Allow lovable.app and lovableproject.com domains for preview and production
   const isAllowed = origin && (
     ALLOWED_ORIGINS.includes(origin) || 
     origin.endsWith('.lovable.app') ||
-    origin.endsWith('.lovableproject.com')
+    origin.endsWith('.lovableproject.com') ||
+    origin.endsWith('.vercel.app')
   );
   const allowedOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];
   
@@ -36,7 +35,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication check - verify JWT token
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error("Missing authorization header");
@@ -46,24 +44,27 @@ serve(async (req) => {
       );
     }
 
-    // Verify the user's JWT token using the local Supabase instance
+    // Verify the user's JWT token
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+    const token = authHeader.replace('Bearer ', '');
+    const verifyResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'Authorization': authHeader,
+        'apikey': supabaseAnonKey,
+      },
     });
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    
-    if (authError || !user) {
-      console.error("Authentication failed:", authError?.message || "No user found");
+    if (!verifyResponse.ok) {
+      console.error("Authentication failed:", verifyResponse.status);
       return new Response(
         JSON.stringify({ error: "Invalid token", data: [] }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const user = await verifyResponse.json();
     console.log("Authenticated user:", user.id);
 
     // External Supabase credentials for data fetching
@@ -78,8 +79,6 @@ serve(async (req) => {
       );
     }
 
-    const externalSupabase = createClient(externalUrl, externalKey);
-
     // Parse body for filters
     let startDate: string | null = null;
     let endDate: string | null = null;
@@ -92,7 +91,6 @@ serve(async (req) => {
         endDate = body.endDate || null;
         agente = body.agente || null;
 
-        // Validate date range to prevent abuse (max 90 days)
         if (startDate && endDate) {
           const start = new Date(startDate);
           const end = new Date(endDate);
@@ -112,32 +110,36 @@ serve(async (req) => {
 
     console.log("Fetching from registra_interacoes_tokai with filters:", { startDate, endDate, agente });
 
-    let query = externalSupabase
-      .from("registra_interacoes_tokai")
-      .select("*")
-      .order("timestamp_chamada", { ascending: false })
-      .limit(500);
-
+    // Build query URL
+    let queryUrl = `${externalUrl}/rest/v1/registra_interacoes_tokai?select=*&order=timestamp_chamada.desc&limit=500`;
+    
     if (startDate) {
-      query = query.gte("timestamp_chamada", startDate);
+      queryUrl += `&timestamp_chamada=gte.${startDate}`;
     }
     if (endDate) {
-      query = query.lte("timestamp_chamada", endDate);
+      queryUrl += `&timestamp_chamada=lte.${endDate}`;
     }
     if (agente) {
-      query = query.eq("agente_associado", agente);
+      queryUrl += `&agente_associado=eq.${encodeURIComponent(agente)}`;
     }
 
-    const { data, error } = await query;
+    const dataResponse = await fetch(queryUrl, {
+      headers: {
+        'apikey': externalKey,
+        'Authorization': `Bearer ${externalKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-    if (error) {
-      console.error("Error fetching from external Supabase:", error);
+    if (!dataResponse.ok) {
+      console.error("Error fetching from external Supabase:", dataResponse.status);
       return new Response(
         JSON.stringify({ error: "Unable to fetch data. Please try again later.", data: [] }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const data = await dataResponse.json();
     console.log("Fetched records:", data?.length || 0);
 
     return new Response(
