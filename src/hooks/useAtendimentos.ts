@@ -80,44 +80,43 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     setError(null);
 
     try {
-      const { data: result, error: invokeError } = await supabase.functions.invoke(
-        "fetch-atendimentos",
-        {
-          body: {
-            startDate: startDate?.toISOString(),
-            endDate: endDate?.toISOString(),
-            agente,
-          },
-        }
-      );
+      // Conexão direta com a tabela que sua automação alimenta
+      let query = supabase
+        .from('registra_interacoes_tokai')
+        .select('*');
 
-      if (invokeError) {
-        console.error('Error fetching atendimentos:', invokeError);
-        setError('Aguardando dados da Tokai');
-        setAtendimentos([]);
-        setStats(emptyStats);
-        setAgentes([]);
+      // Aplicação de filtros de data (usando o campo created_at padrão)
+      if (startDate) {
+        query = query.gte('created_at', startDate.toISOString());
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate.toISOString());
+      }
+      if (agente && agente !== 'null') {
+        query = query.eq('agente_associado', agente);
+      }
+
+      const { data, error: queryError } = await query;
+
+      if (queryError) {
+        console.error('Error fetching atendimentos:', queryError);
+        setError('Erro ao carregar dados do banco');
         return;
       }
 
-      const data = result?.data || [];
-
-      // Se não houver dados, exibir mensagem amigável
       if (!data || data.length === 0) {
         setError('Aguardando dados da Tokai');
         setAtendimentos([]);
         setStats(emptyStats);
-        setAgentes([]);
         return;
       }
 
       let filteredData = (data as Atendimento[]) || [];
 
-      // Filter by status if specified (suporta status antigos e novos)
+      // Filtro de status processado no front-end para manter a lógica do dashboard
       if (status) {
         filteredData = filteredData.filter((atendimento) => {
           const st = getStatusAtendimento(atendimento);
-          // Compatibilidade: aceita filtros antigos (EM_ANDAMENTO) e novos
           if (status === 'EM_ANDAMENTO') {
             return st === 'EM_ANDAMENTO_IA' || st === 'EM_ANDAMENTO_HUMANO' || st === 'AGUARDANDO_CLIENTE';
           }
@@ -128,7 +127,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       setAtendimentos(filteredData);
       setStats(calculateStats((data as Atendimento[]) || []));
 
-      // Extract unique agents
+      // Extração de agentes únicos para o filtro do Dashboard
       const uniqueAgentes = [
         ...new Set(
           (data as Atendimento[])
@@ -139,10 +138,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       setAgentes(uniqueAgentes);
     } catch (err) {
       console.error('Error:', err);
-      setError('Aguardando dados da Tokai');
-      setAtendimentos([]);
-      setStats(emptyStats);
-      setAgentes([]);
+      setError('Erro inesperado ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -152,13 +148,10 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     fetchAtendimentos();
   }, [fetchAtendimentos]);
 
-  // Note: Real-time subscription não funciona com banco externo
-  // Dados são atualizados manualmente via refetch
-
   return { atendimentos, stats, loading, agentes, error, refetch: fetchAtendimentos };
 };
 
-// Interface para mensagens relacionadas (preparação para segunda tabela)
+// Interface para mensagens (mantida conforme original)
 export interface Mensagem {
   id: string;
   remotejid: string;
@@ -168,7 +161,6 @@ export interface Mensagem {
   sender: 'bot' | 'user';
 }
 
-// Hook preparado para buscar mensagens relacionadas
 export const useMensagens = (remotejid: string | null) => {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -184,15 +176,7 @@ export const useMensagens = (remotejid: string | null) => {
     setError(null);
 
     try {
-      // Estrutura preparada para tabela de mensagens
-      // Descomente e ajuste quando a tabela estiver disponível:
-      // const { data, error: queryError } = await supabase
-      //   .from('mensagens_tokai')
-      //   .select('*')
-      //   .eq('remotejid', remotejid)
-      //   .order('timestamp', { ascending: true });
-      
-      // Por enquanto, retorna array vazio
+      // Retorna vazio por enquanto até que a tabela de mensagens seja definida
       setMensagens([]);
     } catch (err) {
       console.error('Error fetching mensagens:', err);
