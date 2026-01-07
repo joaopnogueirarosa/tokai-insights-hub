@@ -13,7 +13,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { user, loading, signIn, signUp } = useAuth();
+  const { user, loading, signIn, signUp, resendSignupEmail } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,7 +30,21 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
+          if (error.message.toLowerCase().includes('email not confirmed')) {
+            toast.error('Email não confirmado. Reenvie o email de confirmação.', {
+              action: {
+                label: 'Reenviar',
+                onClick: async () => {
+                  const { error: resendError } = await resendSignupEmail(email);
+                  if (resendError) {
+                    toast.error(resendError.message);
+                  } else {
+                    toast.success('Email de confirmação reenviado!');
+                  }
+                },
+              },
+            });
+          } else if (error.message.includes('Invalid login credentials')) {
             toast.error('Email ou senha incorretos');
           } else {
             toast.error(error.message);
