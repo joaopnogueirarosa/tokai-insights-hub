@@ -1,20 +1,6 @@
-import { Activity, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
+import { Activity } from 'lucide-react';
 
 export const Header = () => {
-  const { user, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    const { error } = await signOut();
-    if (error) {
-      toast.error('Erro ao sair');
-    } else {
-      toast.success('Logout realizado');
-    }
-  };
-
   return (
     <header className="mb-8 animate-slide-up">
       <div className="flex items-center justify-between">
@@ -31,17 +17,6 @@ export const Header = () => {
             </p>
           </div>
         </div>
-        {user && (
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {user.email}
-            </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </Button>
-          </div>
-        )}
       </div>
     </header>
   );

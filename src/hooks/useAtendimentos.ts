@@ -149,25 +149,6 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   }, [startDate, endDate, status, agente, calculateStats]);
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        fetchAtendimentos();
-      }
-
-      if (event === 'SIGNED_OUT') {
-        setAtendimentos([]);
-        setStats(emptyStats);
-        setAgentes([]);
-        setError(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [fetchAtendimentos]);
-
-  useEffect(() => {
     fetchAtendimentos();
   }, [fetchAtendimentos]);
 
