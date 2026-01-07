@@ -85,7 +85,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         .from('registra_interacoes_tokai')
         .select('*');
 
-      // Aplicação de filtros de data (usando o campo created_at padrão)
+      // Aplicação de filtros de data baseados no banco
       if (startDate) {
         query = query.gte('created_at', startDate.toISOString());
       }
@@ -113,7 +113,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
 
       let filteredData = (data as Atendimento[]) || [];
 
-      // Filtro de status processado no front-end para manter a lógica do dashboard
+      // Filtro de status processado no front-end para manter a lógica original
       if (status) {
         filteredData = filteredData.filter((atendimento) => {
           const st = getStatusAtendimento(atendimento);
@@ -176,7 +176,6 @@ export const useMensagens = (remotejid: string | null) => {
     setError(null);
 
     try {
-      // Retorna vazio por enquanto até que a tabela de mensagens seja definida
       setMensagens([]);
     } catch (err) {
       console.error('Error fetching mensagens:', err);
