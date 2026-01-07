@@ -35,38 +35,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("Missing authorization header");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", data: [] }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verify the user's JWT token
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    
-    const token = authHeader.replace('Bearer ', '');
-    const verifyResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        'Authorization': authHeader,
-        'apikey': supabaseAnonKey,
-      },
-    });
-
-    if (!verifyResponse.ok) {
-      console.error("Authentication failed:", verifyResponse.status);
-      return new Response(
-        JSON.stringify({ error: "Invalid token", data: [] }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const user = await verifyResponse.json();
-    console.log("Authenticated user:", user.id);
-
     // External Supabase credentials for data fetching
     const externalUrl = Deno.env.get("EXTERNAL_SUPABASE_URL");
     const externalKey = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
