@@ -1,7 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Cliente Supabase para conexão direta (GitHub/Vercel)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://tphixssaqecyrbtreixk.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwaGl4c3NhcWVjeXJidHJlaXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMjM1ODEsImV4cCI6MjA2NzU5OTU4MX0.E50fGtQJNFzNDmqi4s6JJmalx2eFpbCMLuD3xQIGJ2Y';
+// - Em Vercel, configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (ou VITE_EXTERNAL_*).
+// - Schema padrão: public (pode sobrescrever com VITE_SUPABASE_SCHEMA)
+const SUPABASE_URL =
+  import.meta.env.VITE_EXTERNAL_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL ||
+  'https://tphixssaqecyrbtreixk.supabase.co';
 
-export const supabaseExternal = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  '';
+
+const SUPABASE_SCHEMA = import.meta.env.VITE_SUPABASE_SCHEMA || 'public';
+
+if (!SUPABASE_ANON_KEY) {
+  // Falha explícita (melhor do que “conectar” no backend errado)
+  // eslint-disable-next-line no-console
+  console.error(
+    'Configuração ausente: defina VITE_SUPABASE_ANON_KEY (ou VITE_EXTERNAL_SUPABASE_ANON_KEY) no ambiente.'
+  );
+}
+
+export const supabaseExternal = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: SUPABASE_SCHEMA },
+});
