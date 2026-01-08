@@ -81,9 +81,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
 
     try {
       // Query direta à tabela registra_interacoes_tokai no Supabase externo
-      let query = supabaseExternal
-        .from('registra_interacoes_tokai')
-        .select('*');
+      let query = supabaseExternal.from('registra_interacoes_tokai').select('*');
 
       // Filtros de data usando user_lastInteraction
       if (startDate) {
@@ -100,6 +98,22 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
 
       if (queryError) {
         console.error('Erro na query:', queryError);
+
+        // Mensagens mais claras para o deploy (GitHub/Vercel)
+        if ((queryError as any).code === 'PGRST205') {
+          setError(
+            "Tabela não encontrada (PGRST205). Verifique na Vercel se VITE_SUPABASE_URL aponta para o projeto correto e se a tabela 'registra_interacoes_tokai' está no schema configurado (padrão: public / VITE_SUPABASE_SCHEMA)."
+          );
+          return;
+        }
+
+        if ((queryError as any).code === '42501' || (queryError as any).code === 'PGRST301') {
+          setError(
+            'Sem permissão para ler a tabela (RLS). Para dashboard sem login, a tabela precisa permitir SELECT para o usuário anônimo, ou você deve buscar via backend (serverless) com chave de serviço.'
+          );
+          return;
+        }
+
         setError(`Erro ao conectar: ${queryError.message}`);
         return;
       }
@@ -118,7 +132,11 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
         filteredData = filteredData.filter((atendimento) => {
           const st = getStatusAtendimento(atendimento);
           if (status === 'EM_ANDAMENTO') {
-            return st === 'EM_ANDAMENTO_IA' || st === 'EM_ANDAMENTO_HUMANO' || st === 'AGUARDANDO_CLIENTE';
+            return (
+              st === 'EM_ANDAMENTO_IA' ||
+              st === 'EM_ANDAMENTO_HUMANO' ||
+              st === 'AGUARDANDO_CLIENTE'
+            );
           }
           return st === status;
         });
