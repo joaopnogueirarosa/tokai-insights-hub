@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseExternal } from '@/lib/supabase';
 import { Atendimento, AtendimentoStats, getStatusAtendimento } from '@/types/atendimento';
 
 interface Filters {
@@ -80,17 +80,17 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
     setError(null);
 
     try {
-      // Conexão direta com a tabela que sua automação alimenta
-      let query = supabase
+      // Query direta à tabela registra_interacoes_tokai no Supabase externo
+      let query = supabaseExternal
         .from('registra_interacoes_tokai')
         .select('*');
 
-      // Aplicação de filtros de data baseados no banco
+      // Filtros de data usando user_lastInteraction
       if (startDate) {
-        query = query.gte('created_at', startDate.toISOString());
+        query = query.gte('user_lastInteraction', startDate.toISOString());
       }
       if (endDate) {
-        query = query.lte('created_at', endDate.toISOString());
+        query = query.lte('user_lastInteraction', endDate.toISOString());
       }
       if (agente && agente !== 'null') {
         query = query.eq('agente_associado', agente);
@@ -99,13 +99,13 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       const { data, error: queryError } = await query;
 
       if (queryError) {
-        console.error('Error fetching atendimentos:', queryError);
-        setError('Erro ao carregar dados do banco');
+        console.error('Erro na query:', queryError);
+        setError(`Erro ao conectar: ${queryError.message}`);
         return;
       }
 
       if (!data || data.length === 0) {
-        setError('Aguardando dados da Tokai');
+        setError('Nenhum registro encontrado na tabela');
         setAtendimentos([]);
         setStats(emptyStats);
         return;
@@ -113,7 +113,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
 
       let filteredData = (data as Atendimento[]) || [];
 
-      // Filtro de status processado no front-end para manter a lógica original
+      // Filtro de status no front-end
       if (status) {
         filteredData = filteredData.filter((atendimento) => {
           const st = getStatusAtendimento(atendimento);
@@ -127,7 +127,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       setAtendimentos(filteredData);
       setStats(calculateStats((data as Atendimento[]) || []));
 
-      // Extração de agentes únicos para o filtro do Dashboard
+      // Extração de agentes únicos para o filtro
       const uniqueAgentes = [
         ...new Set(
           (data as Atendimento[])
@@ -137,7 +137,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
       ];
       setAgentes(uniqueAgentes);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Erro:', err);
       setError('Erro inesperado ao carregar dados');
     } finally {
       setLoading(false);
@@ -151,7 +151,7 @@ export const useAtendimentos = (filters: Filters): UseAtendimentosReturn => {
   return { atendimentos, stats, loading, agentes, error, refetch: fetchAtendimentos };
 };
 
-// Interface para mensagens (mantida conforme original)
+// Interface para mensagens (mantida para uso futuro)
 export interface Mensagem {
   id: string;
   remotejid: string;
