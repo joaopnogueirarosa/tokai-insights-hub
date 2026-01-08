@@ -100,8 +100,9 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
 
                   const status = getStatusAtendimento(atendimento);
 
-                  const tsDate = timestampChamada ? new Date(timestampChamada) : null;
-                  const tsValid = !!tsDate && !Number.isNaN(tsDate.getTime());
+                  // Usa user_lastInteraction como data principal
+                  const userLastDate = userLast ? new Date(userLast) : null;
+                  const userLastValid = !!userLastDate && !Number.isNaN(userLastDate.getTime());
 
                   const lastDate = userLast ? new Date(userLast) : null;
                   const lastValid = !!lastDate && !Number.isNaN(lastDate.getTime());
@@ -144,8 +145,8 @@ export const AtendimentosTable = ({ atendimentos, loading }: AtendimentosTablePr
                         <div className="flex items-center gap-2 text-sm">
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="text-foreground">
-                            {tsValid
-                              ? format(tsDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                            {userLastValid
+                              ? format(userLastDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
                               : '—'}
                           </span>
                         </div>
